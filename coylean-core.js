@@ -43,12 +43,14 @@ export class Col extends Array {
  * The standard map uses (1, 1). Other values shift the
  * priority landscape, producing different maps.
  */
-export function reaction(vertical, horizontal, i, j, rightsPos, downsPos) {
+export function reaction(vertical, horizontal, i, j, rightsPos, downsPos, rightHigh = false) {
     if (!horizontal && !vertical) {
         return [false, false];
     }
 
-    let downWins = pri(i + rightsPos) >= pri(j + downsPos);
+    let downWins = rightHigh
+        ? pri(i + rightsPos) > pri(j + downsPos)
+        : pri(i + rightsPos) >= pri(j + downsPos);
     if (horizontal && vertical) {
         if (downWins) return [true, false];
         else return [false, true];
@@ -79,7 +81,7 @@ export function reaction(vertical, horizontal, i, j, rightsPos, downsPos) {
  * @param {number} downsPos   - vertical priority offset
  * @returns {[Row[], Col[]]}  - [downMatrix, rightMatrix]
  */
-export function propagate(numRows, numColumns, rightsPos, downsPos) {
+export function propagate(numRows, numColumns, rightsPos, downsPos, rightHigh = false) {
     const initRow = new Row(numColumns).fill(true);
     const downMatrix = [...Array(numRows + 1)].map(() => new Row());
     const rightMatrix = [...Array(numColumns + 1)].map(() => new Col());
@@ -96,8 +98,39 @@ export function propagate(numRows, numColumns, rightsPos, downsPos) {
                     j,
                     rightsPos,
                     downsPos,
+                    rightHigh,
                 );
         }
     }
     return [downMatrix, rightMatrix];
+}
+
+/**
+ * Universal propagation across all four quadrants.
+ *
+ * Computes the full Coylean map extending in every direction from the
+ * axis crossing point. Each quadrant is an independent propagate() call
+ * with the appropriate (rightsPos, downsPos) offset:
+ *
+ *       NW (0,0) │ NE (1,0)
+ *       ─────────┼─────────
+ *       SW (0,1) │ SE (1,1)
+ *
+ * The axis boundary (all-true initial conditions) is shared by
+ * construction — each quadrant starts from the axis and propagates
+ * outward. The rendering flips local coordinates to global canvas
+ * positions, which automatically produces the correct axis segments.
+ *
+ * @param {number} radius - cells per quadrant per axis (total grid = 2R × 2R)
+ * @returns {{ nw, ne, sw, se, radius }}
+ *   Each quadrant is a [downMatrix, rightMatrix] pair from propagate().
+ */
+export function universalPropagate(radius, rightHigh = false) {
+    return {
+        nw: propagate(radius, radius, 0, 0, rightHigh),
+        ne: propagate(radius, radius, 1, 0, rightHigh),
+        sw: propagate(radius, radius, 0, 1, rightHigh),
+        se: propagate(radius, radius, 1, 1, rightHigh),
+        radius,
+    };
 }

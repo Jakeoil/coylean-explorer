@@ -1,11 +1,11 @@
 "use strict";
-import { pri, propagate } from "./coylean-core.js";
+import { pri, propagate, universalPropagate } from "./coylean-core.js";
 
 let g; // canvas 2D context
 
 // ── State ──
 
-let feature_active = false;
+let feature_active = "legacy"; // "legacy", "explore", "universe"
 let SIZE = 65;
 let SCALE = 8;
 let rightsPos = 1;
@@ -23,29 +23,33 @@ const eleDownsPos = document.querySelector("#downs-pos");
 
 // ── Controls: Map Type ──
 
+const MODES = ["legacy", "explore", "universe"];
+
 function refreshFeatureActive() {
     for (let button of radioButtons) {
-        if (feature_active) {
-            if (button.id === "exp" && !button.checked) button.checked = true;
-        } else {
-            if (button.id === "leg" && !button.checked) button.checked = true;
-        }
+        button.checked = button.id === feature_active;
     }
-    eleActive.innerHTML = feature_active ? "Explore" : "Legacy";
+    eleActive.innerHTML =
+        feature_active === "universe"
+            ? "Universe"
+            : feature_active === "explore"
+              ? "Explore"
+              : "Legacy";
     for (let ele of elesExplore) {
-        ele.style.display = feature_active ? "block" : "none";
+        ele.style.display = feature_active === "explore" ? "block" : "none";
     }
 }
 
 eleActive.addEventListener("click", function () {
-    feature_active = !feature_active;
+    let idx = MODES.indexOf(feature_active);
+    feature_active = MODES[(idx + 1) % MODES.length];
     refreshFeatureActive();
     coyleanApp();
 });
 
 for (let button of radioButtons) {
     button.addEventListener("click", function () {
-        feature_active = button.id === "exp";
+        feature_active = button.id;
         refreshFeatureActive();
         coyleanApp();
     });
@@ -119,7 +123,7 @@ document.querySelector("#downs-down").addEventListener("click", function () {
 
 // ── Rendering ──
 
-function cell(down, right, i, j) {
+function cell(down, right, i, j, dx = 1, dy = 1) {
     if (!down && !right) return;
 
     let x = i * SCALE;
@@ -127,26 +131,34 @@ function cell(down, right, i, j) {
     let y = j * SCALE;
     let yp = y + SCALE;
 
+    // dx,dy select which edges carry the segments:
+    //   (1,1) SE identity  — right + bottom
+    //   (0,1) SW sᵥ        — left  + bottom
+    //   (1,0) NE sₕ        — right + top
+    //   (0,0) NW r²        — left  + top
+    let vx = dx ? xp : x;
+    let hy = dy ? yp : y;
+
     if (down && right) {
         g.beginPath();
-        g.moveTo(xp, y);
-        g.lineTo(xp, yp);
-        g.lineTo(x, yp);
+        g.moveTo(vx, dy ? y : yp);
+        g.lineTo(vx, hy);
+        g.lineTo(dx ? x : xp, hy);
         g.stroke();
         return;
     }
 
     if (down) {
         g.beginPath();
-        g.moveTo(xp, y);
-        g.lineTo(xp, yp);
+        g.moveTo(vx, y);
+        g.lineTo(vx, yp);
         g.stroke();
         return;
     }
 
     g.beginPath();
-    g.moveTo(xp, yp);
-    g.lineTo(x, yp);
+    g.moveTo(x, hy);
+    g.lineTo(xp, hy);
     g.stroke();
 }
 
@@ -220,16 +232,60 @@ function coyleanLegacy() {
     }
 }
 
+function coyleanUniverse() {
+    const { nw, ne, sw, se, radius: R } = universalPropagate(SIZE);
+    const [nwDM, nwRM] = nw;
+    const [neDM, neRM] = ne;
+    const [swDM, swRM] = sw;
+    const [seDM, seRM] = se;
+
+    // SE: identity — full range, owns both axes
+    for (let j = 0; j < R; j++) {
+        for (let i = 0; i < R; i++) {
+            cell(seDM[j][i], seRM[i][j], R + i, R + j, 1, 1);
+        }
+    }
+    // NE: sₕ — suppress down at j=0 (init row duplicate)
+    for (let j = 0; j < R; j++) {
+        for (let i = 0; i < R; i++) {
+            cell(j === 0 ? false : neDM[j][i], neRM[i][j], R + i, R - 1 - j, 1, 0);
+        }
+    }
+    // SW: sᵥ — suppress right at i=0 (init col duplicate)
+    for (let j = 0; j < R; j++) {
+        for (let i = 0; i < R; i++) {
+            cell(swDM[j][i], i === 0 ? false : swRM[i][j], R - 1 - i, R + j, 0, 1);
+        }
+    }
+    // NW: r² — suppress down at j=0, right at i=0
+    for (let j = 0; j < R; j++) {
+        for (let i = 0; i < R; i++) {
+            cell(j === 0 ? false : nwDM[j][i], i === 0 ? false : nwRM[i][j], R - 1 - i, R - 1 - j, 0, 0);
+        }
+    }
+}
+
 // ── App ──
 
 function coyleanApp() {
     const canvas = document.querySelector("#explore-map > canvas");
     g = canvas.getContext("2d");
     g.lineWidth = 1;
-    canvas.width = SCALE * (SIZE + 1);
-    canvas.height = SCALE * (SIZE + 1);
 
-    const drawScreen = feature_active ? coyleanExploration : coyleanLegacy;
+    if (feature_active === "universe") {
+        canvas.width = SCALE * (2 * SIZE + 1);
+        canvas.height = SCALE * (2 * SIZE + 1);
+    } else {
+        canvas.width = SCALE * (SIZE + 1);
+        canvas.height = SCALE * (SIZE + 1);
+    }
+
+    const drawScreen =
+        feature_active === "universe"
+            ? coyleanUniverse
+            : feature_active === "explore"
+              ? coyleanExploration
+              : coyleanLegacy;
     drawScreen();
 }
 

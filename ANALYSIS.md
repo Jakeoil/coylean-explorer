@@ -40,7 +40,7 @@ in (is there a vertical arrow? a horizontal arrow?), two booleans come out
 The four cases are:
 
 | vertical | horizontal | downWins | out-vertical | out-horizontal |
-|----------|------------|----------|--------------|----------------|
+| -------- | ---------- | -------- | ------------ | -------------- |
 | false    | false      | —        | false        | false          |
 | true     | true       | true     | true         | false          |
 | true     | true       | false    | false        | true           |
@@ -57,8 +57,12 @@ expressed as a truth table rather than a flip operation.
 ## The Mystery of a[0] and a[1]
 
 ```javascript
-[downMatrix[j + 1][i] = a[0], rightMatrix[i + 1][j] = a[1]] =
-    reaction(downMatrix[j][i], rightMatrix[i][j], i, j);
+[downMatrix[j + 1][i] = a[0], rightMatrix[i + 1][j] = a[1]] = reaction(
+    downMatrix[j][i],
+    rightMatrix[i][j],
+    i,
+    j,
+);
 ```
 
 This is JavaScript destructuring with default values. The `= a[0]` and
@@ -75,8 +79,12 @@ throw a ReferenceError.
 The fix is simply to remove the defaults:
 
 ```javascript
-[downMatrix[j + 1][i], rightMatrix[i + 1][j]] =
-    reaction(downMatrix[j][i], rightMatrix[i][j], i, j);
+[downMatrix[j + 1][i], rightMatrix[i + 1][j]] = reaction(
+    downMatrix[j][i],
+    rightMatrix[i][j],
+    i,
+    j,
+);
 ```
 
 ## seLoop: A Name Too Specific for What It Does
@@ -134,14 +142,15 @@ will never be flipped — it's a permanent vertical line, exactly the
 
 ### The four quadrants
 
-| rightsPos | downsPos | Direction | Quadrant | Universe seed |
-|-----------|----------|-----------|----------|---------------|
-| 1         | 1        | SE (+x, +y) | bottom-right | F (V₇₇) |
-| 0         | 1        | SW (−x, +y) | bottom-left  | J×sₕ (V₇₃) |
-| 0         | 0        | NW (−x, −y) | top-left     | J (V₆₆) |
-| 1         | 0        | NE (+x, −y) | top-right    | M (V₅₆) |
+| rightsPos | downsPos | Direction   | Quadrant     | Universe seed |
+| --------- | -------- | ----------- | ------------ | ------------- |
+| 1         | 1        | SE (+x, +y) | bottom-right | F (V₇₇)       |
+| 0         | 1        | SW (−x, +y) | bottom-left  | J×sₕ (V₇₃)    |
+| 0         | 0        | NW (−x, −y) | top-left     | J (V₆₆)       |
+| 1         | 0        | NE (+x, −y) | top-right    | M (V₅₆)       |
 
 Each quadrant is computed by:
+
 1. Setting rightsPos and downsPos to include or exclude each axis
 2. Flipping the iteration direction for each axis that's included
    (propagate away from the origin, not toward it)
@@ -246,6 +255,7 @@ count.
 ```
 
 This means the two "infinite priority" values are duals:
+
 - **0** has infinite evenness (all trailing zeros) — the standard axis
 - **−1** has infinite oddness (all trailing ones) — the "odd axis"
 
@@ -287,14 +297,14 @@ intersection at the origin IS the Coylean seed.
 
 ## All Relevant Globals and Constants
 
-| Variable | Line | Default | Role |
-|----------|------|---------|------|
-| `rightsPos` | 112 | 1 | Horizontal priority offset (0=include axis, 1=exclude) |
-| `downsPos` | 113 | 1 | Vertical priority offset (0=include axis, 1=exclude) |
-| `SIZE` | 59 | 65 | Grid dimension. 65 = 2⁶+1, an order 6 map |
-| `SCALE` | 86 | 8 | Pixel size per cell |
-| `feature_active` | 13 | false | Toggle: exploration vs legacy rendering |
-| `g` | 2 | — | Canvas 2D context (global, set in `exploreMap`) |
+| Variable         | Line | Default | Role                                                   |
+| ---------------- | ---- | ------- | ------------------------------------------------------ |
+| `rightsPos`      | 112  | 1       | Horizontal priority offset (0=include axis, 1=exclude) |
+| `downsPos`       | 113  | 1       | Vertical priority offset (0=include axis, 1=exclude)   |
+| `SIZE`           | 59   | 65      | Grid dimension. 65 = 2⁶+1, an order 6 map              |
+| `SCALE`          | 86   | 8       | Pixel size per cell                                    |
+| `feature_active` | 13   | false   | Toggle: exploration vs legacy rendering                |
+| `g`              | 2    | —       | Canvas 2D context (global, set in `exploreMap`)        |
 
 ### SIZE = 65 = 2⁶ + 1
 
@@ -307,10 +317,14 @@ or exclude.
 
 ```javascript
 class Row extends Array {
-    toString() { return this.reduce((p, c) => p + (c ? "|" : "o"), ""); }
+    toString() {
+        return this.reduce((p, c) => p + (c ? "|" : "o"), "");
+    }
 }
 class Col extends Array {
-    toString() { return this.reduce((p, c) => p + (c ? "-" : "o"), ""); }
+    toString() {
+        return this.reduce((p, c) => p + (c ? "-" : "o"), "");
+    }
 }
 ```
 
@@ -404,12 +418,12 @@ prepended. The axis is the hinge that connects the two halves.
 
 ### The four continuations
 
-| Direction | rightsPos | downsPos | Axis included |
-|-----------|-----------|----------|---------------|
-| SE (+i, +j) | 1 | 1 | neither |
-| SW (−i, +j) | 0 | 1 | vertical |
-| NE (+i, −j) | 1 | 0 | horizontal |
-| NW (−i, −j) | 0 | 0 | both |
+| Direction   | rightsPos | downsPos | Axis included |
+| ----------- | --------- | -------- | ------------- |
+| SE (+i, +j) | 1         | 1        | neither       |
+| SW (−i, +j) | 0         | 1        | vertical      |
+| NE (+i, −j) | 1         | 0        | horizontal    |
+| NW (−i, −j) | 0         | 0        | both          |
 
 Each continuation is `propagate()` with adjusted offsets and a flipped
 read-out direction. The function itself doesn't change. This is the
@@ -470,3 +484,133 @@ The four-quadrant universe that we built in the explorer page using the
 two integer offsets and a direction flip. Two different representations of
 the same mathematical structure — one as a substitution seed, one as a
 parameterized propagation.
+
+## Appendix
+
+❯ Propose the structure of the universal propagation function.
+
+Searched for 1 pattern, read 2 files (ctrl+o to expand)
+
+⏺ Here's the structural proposal. The key insight from the analysis:  
+ propagate() already computes any quadrant — we just need the right
+offset and a coordinate flip.
+
+### Universal Propagate — Proposed Structure
+
+Strategy: Four quadrants, one axis
+
+             N
+             ↑
+      NW     │     NE
+     (0,0)   │   (1,0)
+             │
+    ─────────┼──────────→ E
+             │
+      SW     │     SE
+     (0,1)   │   (1,1)     ← (rightsPos, downsPos)
+             │
+             S
+
+Each quadrant is a standard propagate() call. The offset parameter  
+ (0 or 1) controls whether that quadrant includes its axis edge. The
+four calls tile together without overlap or gap.
+
+Signature
+
+```
+
+- Propagate the Coylean map across all four quadrants.
+-
+- @param {number} radius — extent in each direction (2^n for order
+  n)
+- @returns {{ down: boolean[][], right: boolean[][] }}
+- Matrices indexed in global coordinates: [-radius..+radius]
+- Stored with offset: array index = global coord + radius
+   \*/
+  function universalPropagate(radius)
+```
+
+### Internal structure
+
+1. Compute four quadrants (independent — parallelizable)
+   SE = propagate(radius, radius, 1, 1) // neither axis
+   SW = propagate(radius, radius, 0, 1) // includes vertical axis
+   (col 0)
+   NE = propagate(radius, radius, 1, 0) // includes horizontal
+   axis (row 0)
+   NW = propagate(radius, radius, 0, 0) // includes both axes
+2. Allocate global matrices
+   size = 2 \* radius + 1
+   down[size+1][size] — vertical arrows
+   right[size][size+1] — horizontal arrows
+
+3. Assemble — flip and place
+   SE → as-is into global [+1..+R, +1..+R]
+   SW → flip cols into global [−R..0, +1..+R]
+   NE → flip rows into global [+1..+R, −R..0]
+   NW → flip both into global [−R..0, −R..0]
+   Axis ownership:
+   • Vertical axis (col 0): from SW or NW (rightsPos = 0)
+   • Horizontal axis (row 0): from NE or NW (downsPos = 0)
+   • Origin (0,0): from NW (both = 0)
+
+### Why the flips work
+
+Each quadrant's propagate() iterates away from the axis in local  
+ coordinates (i = 0, 1, 2...). In global coordinates:
+
+┌──────────┬──────────────────────────┬──────────────────────────┐  
+ │ Quadrant │ Local i=0,1,2... maps to │ Local j=0,1,2... maps to │
+│ │ global │ global │  
+ ├──────────┼──────────────────────────┼──────────────────────────┤  
+ │ SE │ +1, +2, +3... │ +1, +2, +3... │
+├──────────┼──────────────────────────┼──────────────────────────┤  
+ │ SW │ 0, −1, −2... │ +1, +2, +3... │  
+ ├──────────┼──────────────────────────┼──────────────────────────┤  
+ │ NE │ +1, +2, +3... │ 0, −1, −2... │  
+ ├──────────┼──────────────────────────┼──────────────────────────┤  
+ │ NW │ 0, −1, −2... │ 0, −1, −2... │
+└──────────┴──────────────────────────┴──────────────────────────┘
+
+The flip during assembly reverses the array to match global  
+ ordering. Priority is symmetric (pri(n) = pri(-n) for n ≠ 0), so the
+flipped quadrant's priority landscape is correct.
+
+What reaction() needs
+
+No changes. It already takes (vertical, horizontal, i, j, rightsPos,
+downsPos) — the offset parameter handles everything. The only new
+concern is the assembly step, which is pure index arithmetic.
+
+### Alternative: direct global iteration
+
+Instead of four calls + assembly, iterate once over the full grid:
+
+```
+for (let j = -radius; j <= radius; j++) {
+ for (let i = -radius; i <= radius; i++) {
+ // priority: pri(|i|) >= pri(|j|)
+ // arrow source depends on quadrant:
+ // SE: from (i-1, j) and (i, j-1)
+ // SW: from (i+1, j) and (i, j-1)
+ // NE: from (i-1, j) and (i, j+1)
+ // NW: from (i+1, j) and (i, j+1)
+ let di = i > 0 ? -1 : +1; // look toward axis
+ let dj = j > 0 ? -1 : +1;
+ // ... reaction using arrow from (i+di, j) and (i, j+dj)
+ }
+ }
+```
+
+This is more elegant but requires careful iteration order — each  
+ quadrant must be filled outward from the axis. You'd need four
+nested loops anyway (or a spiral), so it's not obviously simpler  
+ than the four-call approach.
+
+### Recommendation
+
+The four-call assembly approach. It reuses propagate() unchanged,  
+ makes the quadrant structure explicit, and the assembly is just
+array flips. The direct-iteration version is mathematically cleaner
+but harder to verify and doesn't let you reuse the existing tested
+function.
